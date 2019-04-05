@@ -19,6 +19,10 @@
 #include <fstream>
 #include <memory>
 
+#ifdef INTEL_USM
+#include <CL/sycl/detail/clusm.hpp>
+#endif
+
 namespace cl {
 namespace sycl {
 
@@ -391,6 +395,27 @@ private:
           "This instance of program does not contain the kernel requested");
     }
     CHECK_OCL_CODE(Err);
+#ifdef INTEL_USM
+    // Enable Indirect Accesses of USM pointers
+    CLUSM* clusm = GetCLUSM();
+    
+    cl_bool b = CL_TRUE;
+    clusm->setKernelExecInfo(
+      ClKernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+    clusm->setKernelExecInfo(
+      ClKernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+    clusm->setKernelExecInfo(
+      ClKernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+#endif
     return ClKernel;
   }
 

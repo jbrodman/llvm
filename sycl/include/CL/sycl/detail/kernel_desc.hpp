@@ -19,7 +19,8 @@ namespace detail {
 enum class kernel_param_kind_t {
   kind_accessor,
   kind_std_layout, // standard layout object parameters
-  kind_sampler
+  kind_sampler,
+  kind_pointer
 };
 
 // describes a kernel parameter

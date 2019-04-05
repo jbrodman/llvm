@@ -301,6 +301,7 @@ public:
     kind_accessor = kind_first,
     kind_std_layout,
     kind_sampler,
+    kind_pointer,
     kind_last = kind_sampler
   };
 

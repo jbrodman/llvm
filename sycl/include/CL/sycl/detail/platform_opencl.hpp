@@ -21,7 +21,9 @@ namespace detail {
 // TODO: implement parameters treatment
 class platform_opencl : public platform_impl {
 public:
-  platform_opencl(cl_platform_id platform_id) : id(platform_id) {}
+  platform_opencl(cl_platform_id platform_id) : id(platform_id) {
+
+  }
 
   vector_class<device> get_devices(
       info::device_type deviceType = info::device_type::all) const override;

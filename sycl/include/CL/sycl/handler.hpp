@@ -276,6 +276,11 @@ public:
   }
 #endif
 
+#ifdef INTEL_USM
+  event sycl_memcpy(void* dest, const void* src, size_t count);
+  event sycl_memset(void* ptr, int value, size_t count);
+#endif
+  
   // Kernel dispatch API
   // Kernel is represented as a lambda.
   template <typename KernelName, typename KernelType>

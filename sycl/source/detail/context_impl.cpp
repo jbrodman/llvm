@@ -14,6 +14,7 @@
 #include <CL/sycl/info/info_desc.hpp>
 #include <CL/sycl/platform.hpp>
 #include <CL/sycl/stl.hpp>
+#include <CL/sycl/detail/clusm.hpp>
 
 namespace cl {
 namespace sycl {
@@ -37,6 +38,13 @@ context_impl::context_impl(const vector_class<cl::sycl::device> Devices,
       clCreateContext(0, DeviceIds.size(), DeviceIds.data(), 0, 0, &Err);
   // TODO catch an exception and put it to list of asynchronous exceptions
   CHECK_OCL_CODE(Err);
+
+#ifdef INTEL_USM
+  // Set initial default context for USM
+  CLUSM* clusm = GetCLUSM();
+  clusm->setInitialDefaultContext(m_ClContext);
+#endif
+  
 }
 
 context_impl::context_impl(cl_context ClContext, async_handler AsyncHandler)

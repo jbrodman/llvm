@@ -40,6 +40,7 @@
 #include <CL/sycl/sampler.hpp>
 #include <CL/sycl/types.hpp>
 #include <CL/sycl/version.hpp>
+#include <CL/sycl/usm.hpp>
 
 #ifndef SCHEDULER_20
 // Do not include RT only function implementations for device code as it leads

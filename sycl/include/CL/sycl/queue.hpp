@@ -89,6 +89,11 @@ public:
     return impl->submit(cgf, impl, secondaryQueue.impl);
   }
 
+#ifdef INTEL_USM
+  event sycl_memcpy(void* dest, const void* src, size_t count);
+  event sycl_memset(void* ptr, int value, size_t count);
+#endif
+  
   void wait() { impl->wait(); }
 
   void wait_and_throw() { impl->wait_and_throw(); }

@@ -358,6 +358,13 @@ private:
       }
 
       for (const auto &Field : CRD->fields()) {
+        QualType FTy = Field->getType();
+        if (FTy->isPointerType()) {
+          FTy = FTy->getPointeeType();
+        }
+        if (FTy == Ty) {
+          continue;
+        }
         if (!CheckSYCLType(Field->getType(), Field->getSourceRange())) {
           SemaRef.Diag(Loc.getBegin(), diag::note_sycl_used_here);
           return false;
@@ -365,6 +372,13 @@ private:
       }
     } else if (const auto *RD = Ty->getAsRecordDecl()) {
       for (const auto &Field : RD->fields()) {
+        QualType FTy = Field->getType();
+        if (FTy->isPointerType()) {
+          FTy = FTy->getPointeeType();
+        }
+        if (FTy == Ty) {
+          continue;
+        }
         if (!CheckSYCLType(Field->getType(), Field->getSourceRange())) {
           SemaRef.Diag(Loc.getBegin(), diag::note_sycl_used_here);
           return false;
@@ -648,6 +662,9 @@ CreateSYCLKernelBody(Sema &S, FunctionDecl *KernelCallerFunc, DeclContext *DC) {
             S.Context, ME, ParamStmts, ResultTy, VK, SourceLocation());
         BodyStmts.push_back(Call);
       } else if (CRD || FieldType->isScalarType()) {
+        // Check for Pointers? (USM)
+        // RHS will be __global, LHR won't be - need to fix.
+
         // If field have built-in or a structure/class type just initialize
         // this field with corresponding kernel argument using '=' binary
         // operator. The structure/class type must be copy assignable - this
@@ -722,6 +739,7 @@ static target getAccessTarget(const ClassTemplateSpecializationDecl *AccTy) {
 
 static void buildArgTys(ASTContext &Context, CXXRecordDecl *KernelObj,
                         SmallVectorImpl<ParamDesc> &ParamDescs) {
+  // JCB look here
   const LambdaCapture *Cpt = KernelObj->captures_begin();
   auto CreateAndAddPrmDsc = [&](const FieldDecl *Fld, const QualType &ArgType) {
     // create a parameter descriptor and append it to the result
@@ -834,8 +852,21 @@ static void buildArgTys(ASTContext &Context, CXXRecordDecl *KernelObj,
       }
       // structure or class typed parameter - the same handling as a scalar
       CreateAndAddPrmDsc(Fld, ArgTy);
+
       // create descriptors for each accessor field in the class or struct
       createParamDescForWrappedAccessors(Fld, ArgTy);
+    } else if (ArgTy->isPointerType()) {
+      // USM pointers
+      // Not sure if we can stop the Programmer passing a non-USM pointer
+
+      // Can we just use opencl_global now?
+      QualType PointeeTy = ArgTy->getPointeeType();
+      Qualifiers Quals = PointeeTy.getQualifiers();
+      Quals.setAddressSpace(LangAS::opencl_global);
+      PointeeTy = Context.getQualifiedType(PointeeTy.getUnqualifiedType(), Quals);
+      QualType ModTy = Context.getPointerType(PointeeTy);
+
+      CreateAndAddPrmDsc(Fld, ModTy);
     } else if (ArgTy->isScalarType()) {
       // scalar typed parameter
       CreateAndAddPrmDsc(Fld, ArgTy);
@@ -928,6 +959,10 @@ static void populateIntHeader(SYCLIntegrationHeader &H, const StringRef Name,
     } else if (Util::isSyclStreamType(ArgTy)) {
       // the parameter is a SYCL stream object
       llvm_unreachable("streams not supported yet");
+    } else if (ArgTy->isPointerType()) {
+      uint64_t Sz = Ctx.getTypeSizeInChars(Fld->getType()).getQuantity();
+      H.addParamDesc(SYCLIntegrationHeader::kind_pointer,
+                     static_cast<unsigned>(Sz), static_cast<unsigned>(Offset));
     } else if (ArgTy->isStructureOrClassType() || ArgTy->isScalarType()) {
       // the parameter is an object of standard layout type or scalar;
       // the check for standard layout is done elsewhere
@@ -1067,6 +1102,7 @@ static const char *paramKind2Str(KernelParamKind K) {
     CASE(accessor);
     CASE(std_layout);
     CASE(sampler);
+    CASE(pointer);
   default:
     return "<ERROR>";
   }

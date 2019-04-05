@@ -324,6 +324,15 @@ private:
             "Unsupported accessor target case.");
         break;
       }
+#ifdef INTEL_USM
+      case detail::kernel_param_kind_t::kind_pointer: {
+        intptr_t* PtrToPtr = reinterpret_cast<intptr_t*>(Ptr);
+        void* DerefPtr = reinterpret_cast<void*>(*PtrToPtr);
+        const size_t Size = KernelArgs[I].info;
+        MArgs.emplace_back(detail::ArgDesc(Kind, DerefPtr, Size, NextArgId));
+        break;
+      }
+#endif
       }
       break;
     }
@@ -521,6 +530,11 @@ public:
   template <typename... Ts> void set_args(Ts &&... Args) {
     setArgsHelper(0, std::move(Args)...);
   }
+
+#ifdef INTEL_USM
+  event sycl_memcpy(void* dest, const void* src, size_t count);
+  event sycl_memset(void* ptr, int value, size_t count);
+#endif
 
 #ifdef __SYCL_DEVICE_ONLY__
   template <typename KernelName, typename KernelType>

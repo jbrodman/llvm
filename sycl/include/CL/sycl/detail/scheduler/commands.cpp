@@ -161,6 +161,17 @@ void ExecuteKernelCommand<
         }
         break;
       }
+#ifdef INTEL_USM
+      case csd::kernel_param_kind_t::kind_pointer: {
+        const intptr_t *PtrToPtr =
+          getParamAddress<intptr_t>(&m_HostKernel, m_KernelArgs[I].offset);
+        const void *Ptr = reinterpret_cast<const void*>(*PtrToPtr);
+        CHECK_OCL_CODE(
+          clSetKernelArgMemPointerINTEL(m_ClKernel, ArgumentID, Ptr));
+        ArgumentID++;
+        break;
+      }
+#endif
       case csd::kernel_param_kind_t::kind_sampler: {
         sampler *SamplerPtr =
             const_cast<sampler *>(getParamAddress<cl::sycl::sampler>(

@@ -82,6 +82,7 @@ else()
   add_custom_target(ocl-icd DEPENDS ${OpenCL_LIBRARIES} COMMENT "Copying OpenCL ICD Loader ...")
 endif()
 
+
 set(SYCL_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/include/")
 set(OPENCL_INCLUDE "${OpenCL_INCLUDE_DIRS}")
 
@@ -100,6 +101,9 @@ COMMENT "Copying SYCL headers ...")
 
 set(sourceRootPath "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(includeRootPath "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# Guard this somehow?
+add_definitions(-DINTEL_USM=1)
 
 include_directories(AFTER "${includeRootPath}" "${OpenCL_INCLUDE_DIRS}")
 link_libraries(${OpenCL_LIBRARIES})
@@ -161,6 +165,8 @@ add_library("${SYCLLibrary}" SHARED
   "${sourceRootPath}/queue.cpp"
   "${sourceRootPath}/sampler.cpp"
   "${sourceRootPath}/spirv_ops.cpp"
+  "${sourceRootPath}/detail/clusm.cpp"
+  "${sourceRootPath}/detail/oclstubs.cpp"
 )
 
 add_dependencies("${SYCLLibrary}"

@@ -19,6 +19,10 @@
 
 #include <vector>
 
+#ifdef INTEL_USM
+#include <CL/sycl/detail/clusm.hpp>
+#endif
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -370,11 +374,43 @@ cl_int ExecCGCommand::enqueueImp() {
             clSetKernelArg(Kernel, Arg.MIndex, sizeof(cl_sampler), &CLSampler));
         break;
       }
+#ifdef INTEL_USM
+      case kernel_param_kind_t::kind_pointer: {
+        CHECK_OCL_CODE(
+          clSetKernelArgMemPointerINTEL(Kernel, Arg.MIndex, Arg.MPtr));
+        break;
+      }
+#endif
       default:
         assert(!"Unhandled");
       }
     }
 
+#ifdef INTEL_USM
+    // Enable Indirect Accesses of USM pointers
+    CLUSM* clusm = GetCLUSM();
+    
+    cl_bool b = CL_TRUE;
+    clusm->setKernelExecInfo(
+      Kernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+    clusm->setKernelExecInfo(
+      Kernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+    clusm->setKernelExecInfo(
+      Kernel,
+      CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL,
+      sizeof(cl_bool),
+      &b);
+    clusm->setKernelIndirectUSMExecInfo(
+      MQueue->getHandleRef(),
+      Kernel);
+#endif
+    
     cl_int Error = CL_SUCCESS;
     Error = clEnqueueNDRangeKernel(
         MQueue->getHandleRef(), Kernel, NDRDesc.Dims, &NDRDesc.GlobalOffset[0],

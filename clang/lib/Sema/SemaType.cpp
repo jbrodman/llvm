@@ -7429,6 +7429,7 @@ static void deduceOpenCLImplicitAddrSpace(TypeProcessingState &State,
   T = State.getSema().Context.getAddrSpaceQualType(T, ImpAddr);
 }
 
+
 static void HandleLifetimeBoundAttr(TypeProcessingState &State,
                                     QualType &CurType,
                                     ParsedAttr &Attr) {
