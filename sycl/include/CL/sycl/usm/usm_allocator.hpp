@@ -24,113 +24,33 @@ void *aligned_alloc(size_t alignment, size_t size, const device &dev,
                     const context &ctxt, usm::alloc kind);
 void free(void *ptr, const context &ctxt);
 
-template <typename T, usm::alloc AllocKind, size_t Alignment = 0>
+template <class T, usm::alloc AllocKind, size_t Alignment = 0>
 class usm_allocator {
 public:
   using value_type = T;
-  using pointer = T *;
-  using const_pointer = const T *;
-  using reference = T &;
-  using const_reference = const T &;
 
-public:
   template <typename U> struct rebind {
     typedef usm_allocator<U, AllocKind, Alignment> other;
   };
 
-  usm_allocator() = delete;
-  usm_allocator(const context &Ctxt, const device &Dev)
+  usm_allocator() noexcept = delete;
+  usm_allocator(const context &Ctxt, const device &Dev) noexcept
       : MContext(Ctxt), MDevice(Dev) {}
-  usm_allocator(const queue &Q)
+  usm_allocator(const queue &Q) noexcept
       : MContext(Q.get_context()), MDevice(Q.get_device()) {}
-  usm_allocator(const usm_allocator &Other)
+  usm_allocator(const usm_allocator &Other) noexcept
       : MContext(Other.MContext), MDevice(Other.MDevice) {}
 
-  /// Constructs an object on memory pointed by Ptr.
-  ///
-  /// Note: AllocKind == alloc::device is not allowed.
-  ///
-  /// \param Ptr is a pointer to memory that will be used to construct the
-  /// object.
-  /// \param Val is a value to initialize the newly constructed object.
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0>
-  void construct(pointer Ptr, const_reference Val) {
-    new (Ptr) value_type(Val);
-  }
-
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0>
-  void construct(pointer Ptr, const_reference Val) {
-    throw feature_not_supported(
-        "Device pointers do not support construct on host",
-        PI_INVALID_OPERATION);
-  }
-
-  /// Destroys an object.
-  ///
-  /// Note:: AllocKind == alloc::device is not allowed
-  ///
-  /// \param Ptr is a pointer to memory where the object resides.
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0>
-  void destroy(pointer Ptr) {
-    Ptr->~value_type();
-  }
-
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0>
-  void destroy(pointer Ptr) {
-    throw feature_not_supported(
-        "Device pointers do not support destroy on host", PI_INVALID_OPERATION);
-  }
-
-  /// Note:: AllocKind == alloc::device is not allowed.
-  ///
-  /// \param Val is a reference to object.
-  /// \return an address of the object referenced by Val.
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0>
-  pointer address(reference Val) const {
-    return &Val;
-  }
-
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0>
-  pointer address(reference Val) const {
-    throw feature_not_supported(
-        "Device pointers do not support address on host", PI_INVALID_OPERATION);
-  }
-
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0>
-  const_pointer address(const_reference Val) const {
-    return &Val;
-  }
-
-  template <
-      usm::alloc AllocT = AllocKind,
-      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0>
-  const_pointer address(const_reference Val) const {
-    throw feature_not_supported(
-        "Device pointers do not support address on host", PI_INVALID_OPERATION);
-  }
+  template <class U> usm_allocator(usm_allocator<U, AllocKind, Alignment> const &) noexcept {}
 
   /// Allocates memory.
   ///
   /// \param NumberOfElements is a count of elements to allocate memory for.
-  pointer allocate(size_t NumberOfElements) {
+  T *allocate(size_t NumberOfElements) {
 
-    auto Result = reinterpret_cast<pointer>(
+    auto Result = reinterpret_cast<T *>(
         aligned_alloc(getAlignment(), NumberOfElements * sizeof(value_type),
-                                 MDevice, MContext, AllocKind));
+                      MDevice, MContext, AllocKind));
     if (!Result) {
       throw memory_allocation_error();
     }
@@ -141,10 +61,55 @@ public:
   ///
   /// \param Ptr is a pointer to memory being deallocated.
   /// \param Size is a number of elements previously passed to allocate.
-  void deallocate(pointer Ptr, size_t Size) {
+  void deallocate(T *Ptr, size_t Size) {
     if (Ptr) {
       free(Ptr, MContext);
     }
+  }
+
+  /// Constructs an object on memory pointed by Ptr.
+  ///
+  /// Note: AllocKind == alloc::device is not allowed.
+  ///
+  /// \param Ptr is a pointer to memory that will be used to construct the
+  /// object.
+  /// \param Val is a value to initialize the newly constructed object.
+  template <
+      usm::alloc AllocT = AllocKind,
+      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0,
+      class U, class... ArgTs>
+  void construct(U *Ptr, ArgTs &&... Args) {
+    ::new (Ptr) U(std::forward<ArgTs>(Args)...);
+  }
+
+  template <
+      usm::alloc AllocT = AllocKind,
+      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0,
+      class U, class... ArgTs>
+  void construct(U *Ptr, ArgTs &&... Args) {
+    throw feature_not_supported(
+      "Device pointers do not support construct on host",
+      PI_INVALID_OPERATION);
+  }
+
+  /// Destroys an object.
+  ///
+  /// Note:: AllocKind == alloc::device is not allowed
+  ///
+  /// \param Ptr is a pointer to memory where the object resides.
+  template <
+      usm::alloc AllocT = AllocKind,
+      typename std::enable_if<AllocT != usm::alloc::device, int>::type = 0>
+  void destroy(T *Ptr) {
+    Ptr->~value_type();
+  }
+
+  template <
+      usm::alloc AllocT = AllocKind,
+      typename std::enable_if<AllocT == usm::alloc::device, int>::type = 0>
+  void destroy(T *Ptr) {
+    throw feature_not_supported(
+      "Device pointers do not support destroy on host", PI_INVALID_OPERATION);
   }
 
 private:
@@ -162,6 +127,25 @@ private:
   const context MContext;
   const device MDevice;
 };
+
+/// Equality Comparison
+///
+/// Allocators only compare equal if they are of the same USM kind and alignment
+template <class T, usm::alloc AllocKindT, size_t AlignmentT, class U,
+          usm::alloc AllocKindU, size_t AlignmentU>
+bool operator==(const usm_allocator<T, AllocKindT, AlignmentT> &,
+                const usm_allocator<U, AllocKindU, AlignmentU> &) noexcept {
+  return (AllocKindT == AllocKindU) && (AlignmentT == AlignmentU);;
+}
+
+/// Inequality Comparison
+///
+/// Allocators only compare unequal if they are not of the same USM kind and alignment
+template <class T, class U, usm::alloc AllocKind, size_t Alignment = 0>
+bool operator!=(const usm_allocator<T, AllocKind, Alignment> &allocT,
+                const usm_allocator<U, AllocKind, Alignment> &allocU) noexcept {
+  return !(allocT == allocU);
+}
 
 } // namespace sycl
 } // __SYCL_INLINE_NAMESPACE(cl)
