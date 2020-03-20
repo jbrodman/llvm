@@ -135,7 +135,7 @@ template <class T, usm::alloc AllocKindT, size_t AlignmentT, class U,
           usm::alloc AllocKindU, size_t AlignmentU>
 bool operator==(const usm_allocator<T, AllocKindT, AlignmentT> &,
                 const usm_allocator<U, AllocKindU, AlignmentU> &) noexcept {
-  return (AllocKindT == AllocKindU) && (AlignmentT == AlignmentU);;
+  return (AllocKindT == AllocKindU) && (AlignmentT == AlignmentU);
 }
 
 /// Inequality Comparison
