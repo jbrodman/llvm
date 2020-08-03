@@ -871,7 +871,25 @@ public:
 
   template <typename KernelName = detail::auto_name, typename KernelType>
   void parallel_for(range<1> NumWorkItems, KernelType KernelFunc) {
-    parallel_for_lambda_impl<KernelName>(NumWorkItems, std::move(KernelFunc));
+    bool isPrime = true;
+    size_t R = NumWorkItems[0];
+    for (int i = 2; i <= R/2; i++) {
+      if (R % i == 0) {
+        isPrime = false;
+        break;
+      }
+    }
+    if (isPrime) {
+      size_t R64 = (R + 63) & -64;
+      parallel_for_lambda_impl<KernelName>(range<1>(R64), [=](id<1> ID) {
+        if (ID < NumWorkItems) {
+          KernelFunc(ID);
+        }
+      });
+    } else {
+      parallel_for_lambda_impl<KernelName>(NumWorkItems, std::move(KernelFunc));
+    }
+    
   }
 
   template <typename KernelName = detail::auto_name, typename KernelType>
