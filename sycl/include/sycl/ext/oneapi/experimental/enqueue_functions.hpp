@@ -97,23 +97,23 @@ template <typename LCRangeT, typename LCPropertiesT> struct LaunchConfigAccess {
 };
 
 template <typename CommandGroupFunc, typename PropertiesT>
-void submit_impl(queue &Q, PropertiesT Props, CommandGroupFunc &&CGF,
+void submit_impl(const queue &Q, PropertiesT Props, CommandGroupFunc &&CGF,
                  const sycl::detail::code_location &CodeLoc) {
-  Q.submit_without_event<__SYCL_USE_FALLBACK_ASSERT>(
+  const_cast<queue&>(Q).submit_without_event<__SYCL_USE_FALLBACK_ASSERT>(
       Props, detail::type_erased_cgfo_ty{CGF}, CodeLoc);
 }
 
 template <typename CommandGroupFunc, typename PropertiesT>
-event submit_with_event_impl(queue &Q, PropertiesT Props,
+event submit_with_event_impl(const queue &Q, PropertiesT Props,
                              CommandGroupFunc &&CGF,
                              const sycl::detail::code_location &CodeLoc) {
-  return Q.submit_with_event<__SYCL_USE_FALLBACK_ASSERT>(
+  return const_cast<queue&>(Q).submit_with_event<__SYCL_USE_FALLBACK_ASSERT>(
       Props, detail::type_erased_cgfo_ty{CGF}, nullptr, CodeLoc);
 }
 } // namespace detail
 
 template <typename CommandGroupFunc, typename PropertiesT>
-void submit(queue Q, PropertiesT Props, CommandGroupFunc &&CGF,
+void submit(const queue &Q, PropertiesT Props, CommandGroupFunc &&CGF,
             const sycl::detail::code_location &CodeLoc =
                 sycl::detail::code_location::current()) {
   sycl::ext::oneapi::experimental::detail::submit_impl(
@@ -121,7 +121,7 @@ void submit(queue Q, PropertiesT Props, CommandGroupFunc &&CGF,
 }
 
 template <typename CommandGroupFunc>
-void submit(queue Q, CommandGroupFunc &&CGF,
+void submit(const queue& Q, CommandGroupFunc &&CGF,
             const sycl::detail::code_location &CodeLoc =
                 sycl::detail::code_location::current()) {
   submit(std::move(Q), empty_properties_t{},
@@ -129,7 +129,7 @@ void submit(queue Q, CommandGroupFunc &&CGF,
 }
 
 template <typename CommandGroupFunc, typename PropertiesT>
-event submit_with_event(queue Q, PropertiesT Props, CommandGroupFunc &&CGF,
+event submit_with_event(const queue& Q, PropertiesT Props, CommandGroupFunc &&CGF,
                         const sycl::detail::code_location &CodeLoc =
                             sycl::detail::code_location::current()) {
   return sycl::ext::oneapi::experimental::detail::submit_with_event_impl(
@@ -137,7 +137,7 @@ event submit_with_event(queue Q, PropertiesT Props, CommandGroupFunc &&CGF,
 }
 
 template <typename CommandGroupFunc>
-event submit_with_event(queue Q, CommandGroupFunc &&CGF,
+event submit_with_event(const queue& Q, CommandGroupFunc &&CGF,
                         const sycl::detail::code_location &CodeLoc =
                             sycl::detail::code_location::current()) {
   return submit_with_event(std::move(Q), empty_properties_t{},
@@ -150,7 +150,7 @@ void single_task(handler &CGH, const KernelType &KernelObj) {
 }
 
 template <typename KernelName = sycl::detail::auto_name, typename KernelType>
-void single_task(queue Q, const KernelType &KernelObj,
+void single_task(const queue& Q, const KernelType &KernelObj,
                  const sycl::detail::code_location &CodeLoc =
                      sycl::detail::code_location::current()) {
   submit(
@@ -165,7 +165,7 @@ void single_task(handler &CGH, const kernel &KernelObj, ArgsT &&...Args) {
 }
 
 template <typename... ArgsT>
-void single_task(queue Q, const kernel &KernelObj, ArgsT &&...Args) {
+void single_task(const queue& Q, const kernel &KernelObj, ArgsT &&...Args) {
   submit(std::move(Q), [&](handler &CGH) {
     single_task(CGH, KernelObj, std::forward<ArgsT>(Args)...);
   });
@@ -182,7 +182,7 @@ void parallel_for(handler &CGH, range<Dimensions> Range,
 
 template <typename KernelName = sycl::detail::auto_name, int Dimensions,
           typename KernelType, typename... ReductionsT>
-void parallel_for(queue Q, range<Dimensions> Range, const KernelType &KernelObj,
+void parallel_for(const queue& Q, range<Dimensions> Range, const KernelType &KernelObj,
                   ReductionsT &&...Reductions) {
   submit(std::move(Q), [&](handler &CGH) {
     parallel_for<KernelName>(CGH, Range, KernelObj,
@@ -205,7 +205,7 @@ void parallel_for(handler &CGH,
 
 template <typename KernelName = sycl::detail::auto_name, int Dimensions,
           typename Properties, typename KernelType, typename... ReductionsT>
-void parallel_for(queue Q, launch_config<range<Dimensions>, Properties> Config,
+void parallel_for(const queue& Q, launch_config<range<Dimensions>, Properties> Config,
                   const KernelType &KernelObj, ReductionsT &&...Reductions) {
   submit(std::move(Q), [&](handler &CGH) {
     parallel_for<KernelName>(CGH, Config, KernelObj,
@@ -221,7 +221,7 @@ void parallel_for(handler &CGH, range<Dimensions> Range,
 }
 
 template <int Dimensions, typename... ArgsT>
-void parallel_for(queue Q, range<Dimensions> Range, const kernel &KernelObj,
+void parallel_for(const queue& Q, range<Dimensions> Range, const kernel &KernelObj,
                   ArgsT &&...Args) {
   submit(std::move(Q), [&](handler &CGH) {
     parallel_for(CGH, Range, KernelObj, std::forward<ArgsT>(Args)...);
@@ -241,7 +241,7 @@ void parallel_for(handler &CGH,
 }
 
 template <int Dimensions, typename Properties, typename... ArgsT>
-void parallel_for(queue Q, launch_config<range<Dimensions>, Properties> Config,
+void parallel_for(const queue& Q, launch_config<range<Dimensions>, Properties> Config,
                   const kernel &KernelObj, ArgsT &&...Args) {
   submit(std::move(Q), [&](handler &CGH) {
     parallel_for(CGH, Config, KernelObj, std::forward<ArgsT>(Args)...);
@@ -258,7 +258,7 @@ void nd_launch(handler &CGH, nd_range<Dimensions> Range,
 
 template <typename KernelName = sycl::detail::auto_name, int Dimensions,
           typename KernelType, typename... ReductionsT>
-void nd_launch(queue Q, nd_range<Dimensions> Range, const KernelType &KernelObj,
+void nd_launch(const queue& Q, nd_range<Dimensions> Range, const KernelType &KernelObj,
                ReductionsT &&...Reductions) {
   submit(std::move(Q), [&](handler &CGH) {
     nd_launch<KernelName>(CGH, Range, KernelObj,
@@ -282,7 +282,7 @@ void nd_launch(handler &CGH,
 
 template <typename KernelName = sycl::detail::auto_name, int Dimensions,
           typename Properties, typename KernelType, typename... ReductionsT>
-void nd_launch(queue Q, launch_config<nd_range<Dimensions>, Properties> Config,
+void nd_launch(const queue& Q, launch_config<nd_range<Dimensions>, Properties> Config,
                const KernelType &KernelObj, ReductionsT &&...Reductions) {
   submit(std::move(Q), [&](handler &CGH) {
     nd_launch<KernelName>(CGH, Config, KernelObj,
@@ -298,7 +298,7 @@ void nd_launch(handler &CGH, nd_range<Dimensions> Range,
 }
 
 template <int Dimensions, typename... ArgsT>
-void nd_launch(queue Q, nd_range<Dimensions> Range, const kernel &KernelObj,
+void nd_launch(const queue& Q, nd_range<Dimensions> Range, const kernel &KernelObj,
                ArgsT &&...Args) {
   submit(std::move(Q), [&](handler &CGH) {
     nd_launch(CGH, Range, KernelObj, std::forward<ArgsT>(Args)...);
@@ -318,7 +318,7 @@ void nd_launch(handler &CGH,
 }
 
 template <int Dimensions, typename Properties, typename... ArgsT>
-void nd_launch(queue Q, launch_config<nd_range<Dimensions>, Properties> Config,
+void nd_launch(const queue& Q, launch_config<nd_range<Dimensions>, Properties> Config,
                const kernel &KernelObj, ArgsT &&...Args) {
   submit(std::move(Q), [&](handler &CGH) {
     nd_launch(CGH, Config, KernelObj, std::forward<ArgsT>(Args)...);
@@ -339,7 +339,7 @@ void copy(handler &CGH, const T *Src, T *Dest, size_t Count) {
 }
 
 template <typename T>
-void copy(queue Q, const T *Src, T *Dest, size_t Count,
+void copy(const queue& Q, const T *Src, T *Dest, size_t Count,
           const sycl::detail::code_location &CodeLoc =
               sycl::detail::code_location::current()) {
   submit(
@@ -373,7 +373,7 @@ inline void prefetch(handler &CGH, void *Ptr, size_t NumBytes) {
   CGH.prefetch(Ptr, NumBytes);
 }
 
-inline void prefetch(queue Q, void *Ptr, size_t NumBytes,
+inline void prefetch(const queue& Q, void *Ptr, size_t NumBytes,
                      const sycl::detail::code_location &CodeLoc =
                          sycl::detail::code_location::current()) {
   submit(
@@ -391,7 +391,7 @@ __SYCL_EXPORT void mem_advise(queue Q, void *Ptr, size_t NumBytes, int Advice,
 
 inline void barrier(handler &CGH) { CGH.ext_oneapi_barrier(); }
 
-inline void barrier(queue Q, const sycl::detail::code_location &CodeLoc =
+inline void barrier(const queue& Q, const sycl::detail::code_location &CodeLoc =
                                  sycl::detail::code_location::current()) {
   submit(std::move(Q), [&](handler &CGH) { barrier(CGH); }, CodeLoc);
 }
@@ -400,7 +400,7 @@ inline void partial_barrier(handler &CGH, const std::vector<event> &Events) {
   CGH.ext_oneapi_barrier(Events);
 }
 
-inline void partial_barrier(queue Q, const std::vector<event> &Events,
+inline void partial_barrier(const queue& Q, const std::vector<event> &Events,
                             const sycl::detail::code_location &CodeLoc =
                                 sycl::detail::code_location::current()) {
   submit(
